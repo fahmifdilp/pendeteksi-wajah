@@ -1,5 +1,4 @@
-import formidable from "formidable";
-import fs from "fs";
+import { writeFile } from "fs/promises";
 
 export const config = {
   api: {
@@ -8,21 +7,23 @@ export const config = {
 };
 
 export default async function handler(req, res) {
-  const form = new formidable.IncomingForm();
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Hanya POST yang diperbolehkan" });
+  }
 
-  form.parse(req, async (err, fields, files) => {
-    if (err) {
-      console.error("Parsing error", err);
-      return res.status(500).json({ error: "Upload gagal" });
-    }
+  let data = Buffer.from([]);
 
-    const file = files.file;
-    const buffer = fs.readFileSync(file.filepath);
+  req.on("data", chunk => {
+    data = Buffer.concat([data, chunk]);
+  });
 
-    // Saat ini kita hanya return ukuran file sebagai bukti berhasil
-    return res.status(200).json({
-      message: "Gambar diterima di Vercel",
-      ukuran: buffer.length,
+  req.on("end", async () => {
+    // Simpan file (opsional, untuk testing)
+    await writeFile(`/tmp/upload.jpg`, data);
+
+    res.status(200).json({
+      message: "Gambar diterima",
+      ukuran: data.length,
     });
   });
 }
